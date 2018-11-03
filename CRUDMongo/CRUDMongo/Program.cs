@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DnsClient.Protocol;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -10,7 +11,7 @@ namespace CRUDMongo
     {
         static void Main(string[] args)
         {
-            CountryMovies();
+            SchemaTask();
         }
 
         static void Movies()
@@ -71,6 +72,42 @@ namespace CRUDMongo
             }
 
             collection.BulkWrite(deleteModels);
+        }
+
+        static void SchemaTask()
+        {
+            var client = new MongoClient();
+            var database = client.GetDatabase("school");
+            var collection = database.GetCollection<BsonDocument>("students");
+
+            var documents = collection.Find(new BsonDocument()).ToList();
+
+            var updateModels = new List<WriteModel<BsonDocument>>();
+            
+            foreach (var document in documents)
+            {
+                var minValue = document
+                    .GetValue("scores")
+                    .AsBsonArray
+                    .Values
+                    .AsEnumerable()
+                    .Select(x => x.AsBsonDocument)
+                    .Where(x => x.GetValue("type") == "homework")
+                    .Min(x => x.GetValue("score").AsDouble);
+
+                var filter = Builders<BsonDocument>
+                    .Filter
+                    .Eq("_id", document.GetValue("_id"));
+                
+                var deleteValue = new BsonDocument().Add("score", minValue);
+                var pullModel = Builders<BsonDocument>
+                    .Update
+                    .Pull("scores", deleteValue);
+                
+                updateModels.Add(new UpdateOneModel<BsonDocument>(filter, pullModel));
+            }
+
+            collection.BulkWrite(updateModels);
         }
     }
 }
