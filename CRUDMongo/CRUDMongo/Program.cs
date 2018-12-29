@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DnsClient.Protocol;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
 namespace CRUDMongo
@@ -11,7 +12,7 @@ namespace CRUDMongo
     {
         static void Main(string[] args)
         {
-            SchemaTask();
+            TestEnumString();
         }
 
         static void Movies()
@@ -109,5 +110,36 @@ namespace CRUDMongo
 
             collection.BulkWrite(updateModels);
         }
+        
+        static void TestEnumString()
+        {
+            var client = new MongoClient();
+            var database = client.GetDatabase("myEnums");
+            var collection = database.GetCollection<Sock>("socks");
+            
+            collection.InsertOne(new Sock { Type = Type.ABC});
+
+            var list = collection.Find(x => true).ToList();
+
+            foreach (var sock in list)
+            {
+                Console.WriteLine($"{sock.Id} {sock.Type}");
+            }
+        }
+    }
+    
+    class Sock
+    {
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string Id { get; set; }
+        
+        [BsonRepresentation(BsonType.String)]
+        public Type Type { get; set; }
+    }
+
+    enum Type
+    {
+        ABC,
+        DBA
     }
 }
